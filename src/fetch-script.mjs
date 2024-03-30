@@ -47,7 +47,9 @@ async function carga(response) {
   }
 }
 export async function fetchNFTs(wallet){
-    let nfts= fetch(fetchURL, requestOptions).then((response) =>response.json().then((response)=> response.nfts))
+    const NftsUrl= `https://eth-sepolia.g.alchemy.com/nft/v3/${apiKey}/getNFTsForOwner?owner=${wallet}&contractAddresses[]=0x57F6c8aad191e2C2079d02E199f0e916BA3308C3&withMetadata=true&pageSize=100`
+
+    let nfts= fetch(NftsUrl, requestOptions).then((response) =>response.json().then((response)=> response.ownedNfts))
     return nfts;
 }
 // Make the request and print the formatted response:

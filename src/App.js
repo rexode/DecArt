@@ -1,14 +1,20 @@
 import React, { Component } from "react";
-import logo from "./logo.svg";
-import "./App.css";
 import Box from "@mui/material/Box";
-import Paper from "@mui/material/Paper";
-import Grid from "@mui/material/Grid";
-import Card from "@mui/material/Card";
-import CardMedia from "@mui/material/CardMedia";
-import CardContent from "@mui/material/CardContent";
 import Typography from "@mui/material/Typography";
 import { fetchNFTs } from "./fetch-script";
+import AppBar from '@mui/material/AppBar';
+import Toolbar from '@mui/material/Toolbar';
+import Button from '@mui/material/Button';
+import CrearSubasta from './Crear_Subasta';
+import Log_in from './Login_register';
+
+import {
+    BrowserRouter as Router,
+    Routes,
+    Route,
+    Navigate,
+} from "react-router-dom";
+
 
 class App extends Component {
   constructor() {
@@ -19,7 +25,7 @@ class App extends Component {
     };
   }
   async componentWillMount() {
-    await fetchNFTs("0x8B66676696E61EE8748e30AA5a07D18BaD0810D8").then(
+    await fetchNFTs("0x6186610db245471A8D9C674802a93dFe4c2eFeD2").then(
       (response) => this.setState({ data: response })
     );
   }
@@ -28,47 +34,64 @@ class App extends Component {
     data = this.state.data;
     console.log(data);
     return (
-      <Box style={{ padding: 100 }}>
-        <Grid
-          container
-          spacing={3}
-          style={{ flexWrap: "nowrap" }}
-          direction="row"
-          justifyContent="center"
-          alignItems="baseline"
-          columns={2}
-        >
-          {data.map((data, index) => {
-            const { tokenId, name, description, image } = data;
-            //console.log(data);
-            return (
-              <Grid item xs={6} sm={4}>
-                <Card sx={{ width: 300 }}>
-                  <Box>
-                    <CardMedia
-                      sx={{ height: 140 }}
-                      component="img"
-                      image={image.originalUrl}
-                      title={name}
+    <>
+      <Box >
+        <AppBar position="static">
+          <Toolbar>
+          <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
+              DECart
+            </Typography>
+            <Button
+              size="large"
+              edge="start"
+              color="inherit"
+              aria-label="menu"
+              sx={{ mr: 2 }}
+            >
+            Crear Subasta
+            </Button>
+            <Button
+              size="large"
+              edge="start"
+              color="inherit"
+              aria-label="menu"
+              sx={{ mr: 2 }}
+            >
+            Subastas
+            </Button>
+            
+            <Button color="inherit">Login</Button>
+          </Toolbar>
+        </AppBar>
+
+        </Box>
+            {/* This is the alias of BrowserRouter i.e. Router */}
+            <Router>
+                <Routes>
+                    {/* This route is for home component 
+          with exact path "/", in component props 
+          we passes the imported component*/}
+                    <Route
+                        exact
+                        path="/"
+                        element={<CrearSubasta />}
                     />
-                    <CardContent>
-                      <Typography gutterBottom variant="h5" component="div">
-                        {name}
-                      </Typography>
-                      <Typography variant="body2" color="text.secondary">
-                        {tokenId}
-                      </Typography>
-                      <Typography variant="body2" color="text.secondary">
-                        {description}
-                      </Typography>
-                    </CardContent>
-                  </Box>
-                </Card>
-              </Grid>
-            );
-          })}
-        </Grid>
-      </Box>
+                    <Route
+                        exact
+                        path="/LogIn"
+                        element={<Log_in />}
+                    />
+ 
+                    
+                    <Route
+                        path="*"
+                        element={<Navigate to="/" />}
+                    />
+                </Routes>
+            </Router>
+        </>
+      
+      
     );
   }
 }
