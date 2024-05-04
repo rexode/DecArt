@@ -185,14 +185,14 @@ class Log_in extends Component {
   }
   render() {
     return (
-      <div>
+      <Box >
         {this.state.Login ? (
           <Grid
             container
             alignItems="center"
             direction="column"
             spacing={5}
-            style={{ paddingTop: 200 }}
+            style={{ paddingTop: 100 }}
           >
             <Grid item>
               <Typography variant="h5" color="primary">
@@ -251,7 +251,7 @@ class Log_in extends Component {
             alignItems="center"
             direction="column"
             spacing={5}
-            style={{ paddingTop: 200 }}
+            style={{ paddingTop: 100 }}
           >
             <Grid item>
               <Typography variant="h5" color="primary">
@@ -375,7 +375,7 @@ class Log_in extends Component {
             {this.state.GoodSnackBarMessage}
           </Alert>
         </Snackbar>
-      </div>
+      </Box>
     );
   }
 }

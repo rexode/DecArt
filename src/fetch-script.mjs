@@ -13,7 +13,7 @@ var requestOptions = {
   method: "GET",
   headers: { accept: "application/json" },
 };
-
+//Contrato Subastas:0xe0486A23A3ADDd17037a8882F1A147CD12bc6035
 // Replace with your Alchemy API key:
 const apiKey = "oaaWWgX72AK5rvY4KHWiq0KqlITn9Psh";
 const baseURL = `https://eth-sepolia.g.alchemy.com/nft/v3/${apiKey}/getNFTsForContract`;
@@ -42,7 +42,7 @@ export async function getOwnerofNFT(id){
   }
 export async function fetchMetadataSingleNft(id) {
   const MetadataNft = `https://eth-sepolia.g.alchemy.com/nft/v2/${apiKey}/getNFTMetadata?contractAddress=0x57F6c8aad191e2C2079d02E199f0e916BA3308C3&tokenId=${id}&refreshCache=false`;
-  console.log(id);
+  console.log("ID"+id);
   let nftMetadata = fetch(MetadataNft, requestOptions).then((response) =>
     response
       .json()

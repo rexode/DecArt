@@ -11,12 +11,15 @@ import CrearSubasta from "./CrearSubasta";
 import Subastas from "./subastas";
 import Cuenta from "./account";
 import SendArt from "./SendArt";
+import {theme} from "./theme";
+import { ThemeProvider } from "@mui/material/styles";
 
 import { useNavigate } from "react-router-dom";
 
 import app from "./Database.mjs";
 import ListarNftASubastar from "./ListaNNftaSubastar";
 import VerifySubasta from "./VerifySubasta";
+import ConfirmarSubasta from "./ConfirmarSubasta";
 
 import {
   createUserWithEmailAndPassword,
@@ -56,16 +59,19 @@ class App extends Component {
       const docRef = doc(db, "Users", useruid);
       const docSnap = await getDoc(docRef);
       if (docSnap.exists()) {
-        console.log("Document data:", docSnap.data().Username);
+        console.log(
+          "Document data:",
+          docSnap.data().Username + " Type: " + docSnap.data().Type );
         this.setState({ Username: docSnap.data().Username });
-        this.setState({ Type: docSnap.data().Username });
+        this.setState({ Type: docSnap.data().Type });
       } else console.log("no hay datos");
     } else console.log("Primera vez");
   };
 
   render() {
     return (
-      <>
+          <ThemeProvider theme={theme}>
+
         {/* This is the alias of BrowserRouter i.e. Router */}
         <Router>
           <AppBar position="static">
@@ -153,7 +159,16 @@ class App extends Component {
               element={<CrearSubasta UserUid={this.state.UserUid} />}
             />
             <Route exact path="/Subastas" element={<Subastas />} />
-            <Route exact path="/VerificarSubasta" element={<VerifySubasta UserUid={this.state.UserUid}/>} />
+            <Route
+              exact
+              path="/ConfirmarSubasta/:Id"
+              element={<ConfirmarSubasta UserUid={this.state.UserUid} />}
+            />
+            <Route
+              exact
+              path="/VerificarSubasta"
+              element={<VerifySubasta UserUid={this.state.UserUid} />}
+            />
 
             <Route exact path="/Envio/:Id" element={<SendArt />} />
             <Route
@@ -164,7 +179,7 @@ class App extends Component {
             <Route path="*" element={<Navigate to="/" />} />
           </Routes>
         </Router>
-      </>
+    </ThemeProvider>
     );
   }
 }

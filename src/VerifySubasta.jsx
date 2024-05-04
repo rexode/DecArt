@@ -28,33 +28,33 @@ import app from "./Database.mjs";
 class VerifySubasta extends Component {
   constructor(props) {
     super(props);
-    console.log(props);
     this.state = {
       data: [],
       scrollPosition: 0,
       uid: this.props.UserUid,
       wallet: "",
       Metadata: [],
+      Type: "Client"
     };
     console.log("uid:" + this.state.uid);
   }
   async componentWillMount() {
-    console.log(this.state.uid);
     if (this.state.uid != "LogIn") {
-      await this.loadObras()
-        .then((response) => this.loadMetadataObras(response))
-        .then((response) => this.setState({ Metadata: response }));
+      await this.GetUserType().then((Type) => {
+        if (Type)
+          this.loadObras()
+            .then((response) => this.loadMetadataObras(response))
+            .then((response) => this.setState({ Metadata: response }));
+      });
     }
   }
 
   async loadMetadataObras(Data) {
-    let auth = getAuth(app);
-    const db = getFirestore(app);
     console.log(Data);
     let list = Data;
     for (let i = 0; i < Data.length; i++) {
-      fetchMetadataSingleNft(list[i].id).then(
-        (response) => (list[i] = { ...list[i], InSite: response })
+      await fetchMetadataSingleNft(list[i].id).then(
+        (response) => (list[i] = { ...list[i], Metadata: response })
       );
     }
 
@@ -62,33 +62,86 @@ class VerifySubasta extends Component {
     return list;
   }
   async loadObras() {
-    let auth = getAuth(app);
     const db = getFirestore(app);
     let data = [];
     const q = query(collection(db, "Obras"), where("ToVerify", "==", true));
-    const querySnapshot = getDocs(q)
+    const querySnapshot = await getDocs(q)
       .then((response) => {
         console.log(response.docs);
         for (let i = 0; i < response.docs.length; i++) {
-          data[i] = {
-            ...data[i],
+          data.push({
             id: response.docs[i].id,
             ToVerify: response.docs[i].data().ToVerify,
-          };
+          });
         }
       })
       .then(() => this.setState({ data: data }));
     return data;
   }
+  async GetUserType() {
+    if (this.state.uid != "LogIn") {
+      const db = getFirestore(app);
+      const docRef = doc(db, "Users", this.state.uid);
+      const docSnap = await getDoc(docRef);
+      if (docSnap.exists() && docSnap.data().Type == "Admin") {
+        this.setState({ Type: docSnap.data().Type });
+        return true;
+      } else return false;
+    } else console.log("Primera vez");
+  }
   render() {
     let data = [];
-    data = this.state.data;
+    data = this.state.Metadata;
     let uid = this.state.uid;
-    console.log(data);
+    let Type =this.state.Type;
+    console.log(data[0]);
     return (
       <Box>
-        {uid != "LogIn" ? (
-          <></>
+        {uid != "LogIn" || Type == "Admin"? (
+          <>
+            <Grid
+              container
+              spacing={3}
+              justifyContent="center"
+              alignItems="baseline"
+              style={{ paddingLeft: 100, paddingTop: 100 }}
+            >
+              {data.map((data, index) => {
+                const { id } = data;
+                const { name, tokenId, description, image } = data.Metadata;
+                //console.log(data);
+                return (
+                  <Grid item xs={4} sm={6} lg={4}>
+                    <Card sx={{ width: 300 }} style={{ borderRadius: "16px" }}>
+                      <Box
+                        as={Link}
+                        to={`/ConfirmarSubasta/${id}`}
+                        style={{ textDecoration: "none" }}
+                      >
+                        <CardMedia
+                          sx={{ height: 140 }}
+                          component="img"
+                          image={image}
+                          title={name}
+                        />
+                        <CardContent>
+                          <Typography gutterBottom variant="h5" component="div">
+                            {name}
+                          </Typography>
+                          <Typography variant="body2" color="text.secondary">
+                            Id:{id}
+                          </Typography>
+                          <Typography variant="body2" color="text.secondary">
+                            {description}
+                          </Typography>
+                        </CardContent>
+                      </Box>
+                    </Card>
+                  </Grid>
+                );
+              })}
+            </Grid>
+          </>
         ) : (
           <>
             <Box

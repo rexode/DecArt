@@ -54,7 +54,11 @@ class ListarNftASubastar extends Component {
       if (docSnap.exists()) {
         //console.log("Obra:" + Data[i].name + "-> " + docSnap.data().InSite);
         
-        list[i]={...list[i], InSite:docSnap.data().InSite, };
+        list[i] = {
+          ...list[i],
+          InSite: docSnap.data().InSite,
+          InProgress: docSnap.data().InProgress,
+        };
       } else console.log("no hay datos");
     }
     console.log(list);
@@ -92,12 +96,21 @@ class ListarNftASubastar extends Component {
           style={{ paddingLeft: 100, paddingTop: 100 }}
         >
           {data.map((data, index) => {
-            const { tokenId, name, description, image, InSite,Id } = data;
+            const { tokenId, name, description, image, InSite,InProgress } = data;
             //console.log(data);
             return (
               <Grid item xs={4} sm={6} lg={4}>
-                <Card sx={{ width: 300 }}>
-                  <Box as={Link} to={`/CrearSubasta/${tokenId}`} style={{ textDecoration: 'none' }}>
+                <Card
+                  sx={{
+                    width: 300,
+                    borderRadius: "16px",
+                  }}
+                >
+                  <Box
+                    as={Link}
+                    to={`/CrearSubasta/${tokenId}`}
+                    style={{ textDecoration: "none" }}
+                  >
                     <CardMedia
                       sx={{ height: 140 }}
                       component="img"
@@ -114,11 +127,30 @@ class ListarNftASubastar extends Component {
                       <Typography variant="body2" color="text.secondary">
                         {description}
                       </Typography>
-                      {InSite ? ( <Chip label="On Site" color="success"/>):( <Chip label="Not on Site" color="warning" />)}
+                      {InSite ? (
+                        <Chip
+                          label="En almacen"
+                          color="success"
+                          sx={{ marginTop: 2 }}
+                        />
+                      ) : (
+                        <Chip
+                          label="Fuera del Almacen"
+                          color="warning"
+                          sx={{ marginTop: 2 }}
+                        />
+                      )}
+                      {InProgress ? (
+                        <Chip
+                          label="Subasta en progreso"
+                          color="success"
+                          sx={{ marginTop: 2 ,marginLeft:2}}
+                        />
+                      ) : (
+                        <></>
+                      )}
                     </CardContent>
-                    
                   </Box>
-                  
                 </Card>
               </Grid>
             );

@@ -16,21 +16,16 @@ import {
   signInWithEmailAndPassword,
   currentUser,
   getAuth,
+  
 } from "firebase/auth";
-import {
-  doc,
-  setDoc,
-  getFirestore,
-  getDoc,
-  updateDoc,
-} from "firebase/firestore";
+import { doc, setDoc, getFirestore, getDoc ,updateDoc} from "firebase/firestore";
 import app from "./Database.mjs";
 import { Link } from "react-router-dom";
 import { ethers } from "ethers";
 import ABI from "./Contracts/NFT.sol";
 import Alert from "@mui/material/Alert";
 
-class CrearSubasta extends Component {
+class ConfirmarSubasta extends Component {
   constructor(props) {
     super(props);
     this.state = {
@@ -39,7 +34,6 @@ class CrearSubasta extends Component {
       response: [],
       data: [],
       uid: this.props.UserUid,
-      Puja: 0,
       GoodSnackBar: 0,
       BadSnackBar: 0,
       GoodSnackBarMessage: "Success!",
@@ -67,13 +61,14 @@ class CrearSubasta extends Component {
   async componentWillMount() {
     if (this.state.uid != "LogIn") {
       await fetchMetadataSingleNft(this.props.params.Id)
-        .then((response) => this.getOnSiteSingleNft(response))
-        .then((response) => this.setState({ data: response }));
+        .then((response) => this.getPujaSingleNft(response))
+        .then((response) => this.setState({ data: response }))
+        .then(() => getOwnerofNFT(this.props.params.Id))
+        .then((owner) => this.setState({ OwnerOfNft: owner }));
     }
   }
-  async getOnSiteSingleNft(Data) {
+  async getPujaSingleNft(Data) {
     console.log(Data);
-    let auth = getAuth(app);
     const db = getFirestore(app);
     let info = Data;
     let docRef = doc(db, "Obras", this.props.params.Id);
@@ -81,69 +76,69 @@ class CrearSubasta extends Component {
     if (docSnap.exists()) {
       //console.log("Obra:" + Data[i].name + "-> " + docSnap.data().InSite);
       console.log(docSnap.data());
-      info = {
-        ...info,
-        InSite: docSnap.data().InSite,
-        InProgress: docSnap.data().InProgress,
-      };
-      console.log(info);
-
+      info = { ...info, PujaMinima: docSnap.data().PujaMinima };
     } else console.log("no hay datos");
 
     console.log(info);
     return info;
   }
 
-  async promiseNFt() {
+  async CrearSubasta() {
     const ERC721ABI = [
-      "function approve(address to, uint256 tokenId) public virtual",
+      "function crearSubasta(uint256 _objeto,uint256 _precioBase, address _NFTowner)public returns(uint256)",
+      "function admins(uint256) view returns(address)",
+      "function nAdmins() view returns(uint)",
     ];
-    if (this.state.Puja != 0) {
-      let provider = new ethers.providers.Web3Provider(window.ethereum);
-      await provider.send("eth_requestAccounts", []);
-      const NFTSmartContract = "0x57F6c8aad191e2C2079d02E199f0e916BA3308C3";
-      let signer = await provider.getSigner();
-      let con = false;
-      let signerAddr = await signer.getAddress().then((addr) =>
-        getOwnerofNFT(this.props.params.Id).then((owner) => {
-          console.log(addr + " " + owner);
-          if (addr == owner) {
-            const Contract = new ethers.Contract(
-              NFTSmartContract,
-              ERC721ABI,
-              provider
-            );
-            const daiWithSigner = Contract.connect(signer);
-            let promise = daiWithSigner
-              .approve(
-                "0x93830807acBB51AF702FF4EBDC2f195FeFF709E1",
-                this.props.params.Id
-              )
-              .then((promise) => promise.wait().then(() => this.setPuja()));
-          } else {
-            this.setState({
-              BadSnackBarMessage: "Debe de conectar la cartera correcta",
-            });
-            this.BadSnackBarOpen();
-          }
-        })
-      );
-    } else {
-      this.setState({ BadSnackBarMessage: "Escriba la Puja minima" });
-      this.BadSnackBarOpen();
-    }
-  }
-  async setPuja() {
+    let provider = new ethers.providers.Web3Provider(window.ethereum);
+    let Wallet= false;
+    await provider.send("eth_requestAccounts", []);
     const db = getFirestore(app);
-    if (this.state.Puja != 0) {
-      await updateDoc(doc(db, "Obras", this.props.params.Id), {
-        PujaMinima: this.state.Puja,
+    const SubastasSmartContract = "0x7C5EDb64c8613D0778F6166Edfe8099Bf16D0182";
+    const Contract = new ethers.Contract(
+      SubastasSmartContract,
+      ERC721ABI,
+      provider
+    );
+
+    let signer = await provider.getSigner();
+    const daiWithSigner = Contract.connect(signer);
+
+    await signer.getAddress().then((address) => {
+      console.log(address);
+      Contract.nAdmins().then((NAdmins) => {
+        let Isadmin = false;
+        for (let i = 0; i < NAdmins + 1 && !Isadmin; i++) {
+          Contract.admins(i).then((adminaddress) => {
+            console.log(
+              ethers.utils.parseUnits(this.state.data.PujaMinima, "ether")
+            );
+            if (address == adminaddress){
+              Wallet=true;
+              daiWithSigner
+                .crearSubasta(
+                  this.props.params.Id,
+                  ethers.utils.parseUnits(this.state.data.PujaMinima, "ether"),
+                  this.state.OwnerOfNft
+                )
+                .then((promise) =>
+                  promise.wait().then(() => {
+                    updateDoc(doc(db, "Obras", this.props.params.Id), {
+                      InProgress: true,
+                      ToVerify:false,
+                    });
+                    this.setState({
+                      GoodSnackBarMessage: "Subasta creada",
+                    });
+                    this.GoodSnackBarOpen();
+                  })
+                );}
+          });
+        }
+        return Wallet;
       });
-      this.setState({ GoodSnackBarMessage: "Solicitud de subasta creada" });
-      this.GoodSnackBarOpen();
-    } else {
-    }
+    });
   }
+
   render() {
     let data = [];
     data = this.state.data;
@@ -212,102 +207,38 @@ class CrearSubasta extends Component {
                         </Typography>
                       </Grid>
                     </Grid>
-                    {data.InSite ? (
-                      <>
-                        {data.InProgress ? (
-                          <>
-                            <Grid item sx={{ paddingTop: 3 }}>
-                              <Grid container alignItems="center">
-                                <Typography
-                                  style={{
-                                    fontSize: 20,
-                                    fontWeight: 50,
-                                    color: "Black",
-                                  }}
-                                >
-                                  Subasta en Progreso
-                                </Typography>
-                              </Grid>
-                            </Grid>
-                            <Grid
-                              container
-                              direction="row"
-                              justifyContent="flex-end"
-                              alignItems="flex-end"
-                              sx={{ paddingTop: 5 }}
-                            >
-                              <Grid item>
-                                <Button variant="contained">
-                                  Ir a la Pagina de la subasta
-                                </Button>
-                              </Grid>
-                            </Grid>
-                          </>
-                        ) : (
-                          <>
-                            <Grid item sx={{ paddingTop: 3 }}>
-                              <Grid container alignItems="center">
-                                <Typography
-                                  style={{
-                                    fontSize: 20,
-                                    fontWeight: 50,
-                                    color: "Black",
-                                  }}
-                                >
-                                  Puja Inicial:
-                                </Typography>
-                                <TextField
-                                  onChange={(e) => {
-                                    this.setState({ Puja: e.target.value });
-                                  }}
-                                ></TextField>
-                              </Grid>
-                            </Grid>
-                            <Grid
-                              container
-                              direction="row"
-                              justifyContent="flex-end"
-                              alignItems="flex-end"
-                              sx={{ paddingTop: 5 }}
-                            >
-                              <Grid item>
-                                <Button
-                                  variant="contained"
-                                  onClick={() => this.promiseNFt()}
-                                >
-                                  Firmar Subasta
-                                </Button>
-                              </Grid>
-                            </Grid>
-                          </>
-                        )}
-                      </>
-                    ) : (
-                      <>
-                        <Grid item sx={{ paddingTop: 3 }}></Grid>
-                        <Grid
-                          container
-                          direction="row"
-                          justifyContent="flex-end"
-                          alignItems="flex-end"
-                          sx={{ paddingTop: 5 }}
+
+                    <Grid item sx={{ paddingTop: 3 }}>
+                      <Grid container alignItems="center">
+                        <Typography
+                          style={{
+                            fontSize: 20,
+                            fontWeight: 50,
+                            color: "Black",
+                          }}
                         >
-                          <Grid item>
-                            <Button variant="contained">
-                              <Link
-                                to={`/Envio/${this.props.params.Id}`}
-                                style={{
-                                  color: "#FFF",
-                                  textDecoration: "none",
-                                }}
-                              >
-                                Enviar a almacen
-                              </Link>
-                            </Button>
-                          </Grid>
-                        </Grid>
-                      </>
-                    )}
+                          Puja Inicial:
+                        </Typography>
+                        <TextField disabled label={data.PujaMinima}></TextField>
+                      </Grid>
+                    </Grid>
+                    <Grid
+                      container
+                      direction="row"
+                      justifyContent="flex-end"
+                      alignItems="flex-end"
+                      sx={{ paddingTop: 5 }}
+                    >
+                      <Grid item>
+                        <Button
+                          variant="contained"
+                          onClick={() => this.CrearSubasta().then((Wallet)=>{if(!Wallet){this.setState({BadSnackBarMessage :"Debe de conectar la cartera correcta"})
+        this.BadSnackBarOpen();}})}
+                        >
+                          Crear Subasta
+                        </Button>
+                      </Grid>
+                    </Grid>
                   </Grid>
                 </Grid>
               </Grid>
@@ -410,4 +341,4 @@ const withRouter = (WrappedComponent) => (props) => {
 
   return <WrappedComponent {...props} params={params} />;
 };
-export default withRouter(CrearSubasta);
+export default withRouter(ConfirmarSubasta);
