@@ -9,7 +9,7 @@ import Chip from "@mui/material/Chip";
 import Button from "@mui/material/Button";
 
 import Typography from "@mui/material/Typography";
-import { fetchNFTs } from "./fetch-script";
+import { fetchNFTs,loadMetadataObras } from "../Controller/fetch-script";
 import { Link } from "react-router-dom";
 import {
   createUserWithEmailAndPassword,
@@ -17,23 +17,24 @@ import {
   currentUser,
   getAuth,
 } from "firebase/auth";
-import { doc, setDoc, getFirestore, getDoc } from "firebase/firestore";
-import app from "./Database.mjs";
+import { doc, setDoc, getFirestore, getDoc,query,collection,where ,getDocs} from "firebase/firestore";
+import app from "../Controller/LogIn-controller.js";
 
 class ListarNftASubastar extends Component {
   constructor(props) {
     super(props);
-    console.log(props);
+    //console.log(props);
     this.state = {
       data: [],
       scrollPosition: 0,
       uid: this.props.UserUid,
       wallet: "",
+      NFTAComprar:[]
     };
-    console.log("uid:" + this.state.uid);
+    //console.log("uid:" + this.state.uid);
   }
   async componentWillMount() {
-    console.log(this.state.uid);
+    //console.log(this.state.uid);
     if (this.state.uid != "LogIn") {
       await this.loadWallet(this.state.uid).then((wallet) =>
         fetchNFTs(wallet)
@@ -43,9 +44,12 @@ class ListarNftASubastar extends Component {
           })
           .then((response) => this.getOnSite(response))
           .then((list) => this.setState({ data: list }))
-      );
+          
+      )
     }
   }
+
+ 
   async getOnSite(Data) {
     let auth = getAuth(app);
     const db = getFirestore(app);
@@ -85,11 +89,22 @@ class ListarNftASubastar extends Component {
     let data = [];
     data = this.state.data;
     let uid = this.state.uid;
-    console.log(data);
+    let NFTAComprar= [];
+    NFTAComprar=this.state.NFTAComprar;
+    console.log("data"+data);
+    console.log("NFTAComprar"+NFTAComprar);
+
     return (
       <Box>
         {uid != "LogIn" ? (
           <>
+          <Grid
+          container
+          alignItems="center"
+          direction="column"
+          justifyContent="space-evenly "style={{ paddingLeft: 100, paddingTop: 20 }}
+        ><Typography     color="#482d0b"  sx={{textDecoration: 'underline'}} display="inline"        style={{ fontSize: 35, fontWeight: 200 }}
+          >Obras en posesion </Typography>
             <Grid
               container
               spacing={3}
@@ -115,7 +130,7 @@ class ListarNftASubastar extends Component {
                         borderRadius: "16px",
                       }}
                     >
-                      <Box
+                      <Box className='about-link-text'
                         as={Link}
                         to={`/CrearSubasta/${tokenId}`}
                         style={{ textDecoration: "none" }}
@@ -164,6 +179,7 @@ class ListarNftASubastar extends Component {
                   </Grid>
                 );
               })}
+            </Grid>
             </Grid>
           </>
         ) : (

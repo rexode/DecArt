@@ -14,7 +14,7 @@ import {
   fetchNFTs,
   fetchMetadataSingleNft,
   fetchMetataNFTsToVerify,
-} from "./fetch-script";
+} from "../Controller/fetch-script";
 import { Link } from "react-router-dom";
 import {
   createUserWithEmailAndPassword,
@@ -23,7 +23,7 @@ import {
   getAuth,
 } from "firebase/auth";
 import { doc, setDoc, getFirestore, getDoc } from "firebase/firestore";
-import app from "./Database.mjs";
+import app from "../Controller/LogIn-controller.js";
 
 class VerifySubasta extends Component {
   constructor(props) {
@@ -34,7 +34,7 @@ class VerifySubasta extends Component {
       uid: this.props.UserUid,
       wallet: "",
       Metadata: [],
-      Type: "Client"
+      Type: "Client",
     };
     console.log("uid:" + this.state.uid);
   }
@@ -93,12 +93,19 @@ class VerifySubasta extends Component {
     let data = [];
     data = this.state.Metadata;
     let uid = this.state.uid;
-    let Type =this.state.Type;
+    let Type = this.state.Type;
     console.log(data[0]);
     return (
       <Box>
-        {uid != "LogIn" || Type == "Admin"? (
+        {uid != "LogIn" || Type == "Admin" ? (
           <>
+          <Grid
+          container
+          alignItems="center"
+          direction="column"
+          justifyContent="space-evenly "style={{ paddingLeft: 100, paddingTop: 20 }}
+        ><Typography       color="#482d0b"   sx={{textDecoration: 'underline'}} display="inline"     style={{ fontSize: 35, fontWeight: 200 }}
+        >Subastas a Verificar </Typography>
             <Grid
               container
               spacing={3}
@@ -116,7 +123,7 @@ class VerifySubasta extends Component {
                       <Box
                         as={Link}
                         to={`/ConfirmarSubasta/${id}`}
-                        style={{ textDecoration: "none" }}
+                        style={{ textDecoration: "none" }} className='about-link-text'
                       >
                         <CardMedia
                           sx={{ height: 140 }}
@@ -140,7 +147,7 @@ class VerifySubasta extends Component {
                   </Grid>
                 );
               })}
-            </Grid>
+            </Grid></Grid>
           </>
         ) : (
           <>

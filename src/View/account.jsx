@@ -1,6 +1,6 @@
 import React, { Component } from "react";
 import Box from "@mui/material/Box";
-import { fetchMetadataSingleNft, fetchNFTs } from "./fetch-script";
+import { fetchMetadataSingleNft, fetchNFTs } from "../Controller/fetch-script";
 import { useParams } from "react-router-dom";
 import Grid from "@mui/material/Grid";
 import Typography from "@mui/material/Typography";
@@ -14,7 +14,7 @@ import {
   getAuth,
 } from "firebase/auth";
 import { doc, setDoc, getFirestore, getDoc } from "firebase/firestore";
-import app from "./Database.mjs";
+import { loadUserdata } from "../Controller/Database-controller.js";
 
 class Cuenta extends Component {
   constructor(props) {
@@ -28,28 +28,19 @@ class Cuenta extends Component {
   }
 
   async componentWillMount() {
-    await this.loadUserdata()
+    await loadUserdata(this.props.UserUid).then((data) => {
+      console.log(data);
+      this.setState({ wallet: data.Wallet });
+      this.setState({ Username: data.Username });
+    });
   }
 
-  async loadUserdata(){
-    if (this.props.UserUid != "LogIn") {
-      let auth = getAuth(app);
-      const db = getFirestore(app);
-      const docRef = doc(db, "Users", this.props.UserUid);
-      const docSnap = await getDoc(docRef);
-      if (docSnap.exists()) {
-        console.log("Document data:", docSnap.data().Wallet);
-        this.setState({ wallet: docSnap.data().Wallet });
-        this.setState({ Username: docSnap.data().Username });
-      } else console.log("no hay datos");
-    } else console.log("Primera vez");
-  }
   render() {
-    let Username ="";
-    let UserUid="";
-    let Wallet="";
-    Wallet= this.state.wallet;
-    UserUid= this.state.UserUid;
+    let Username = "";
+    let UserUid = "";
+    let Wallet = "";
+    Wallet = this.state.wallet;
+    UserUid = this.state.UserUid;
     Username = this.state.Username;
     return (
       <Box
@@ -69,7 +60,7 @@ class Cuenta extends Component {
         >
           <Grid item>
             <Typography
-              style={{ fontSize: 35, fontWeight: 200, color: "Black" }}
+              style={{ fontSize: 35, fontWeight: 200 }}color="#482d0b"  sx={{textDecoration: 'underline'}} display="inline"
             >
               Informacion de la cuenta
             </Typography>
@@ -77,8 +68,6 @@ class Cuenta extends Component {
 
           <Grid item sx={{ paddingTop: 3 }}>
             <Grid container direction="row" justifyContent="space-evenly ">
-              
-
               <Grid item xs={12}>
                 <Grid
                   container
@@ -88,14 +77,14 @@ class Cuenta extends Component {
                 >
                   <Grid item>
                     <Typography
-                      style={{ fontSize: 20, fontWeight: 130, color: "Black" }}
+                      style={{ fontSize: 20, fontWeight: 200, color: "Black" }}
                     >
-                      Name: {Username}
+                      Nombre: {Username}
                     </Typography>
                   </Grid>
                   <Grid item sx={{ paddingTop: 3 }}>
                     <Typography
-                      style={{ fontSize: 15, fontWeight: 100, color: "Black" }}
+                      style={{ fontSize: 20, fontWeight: 100, color: "Black" }}
                     >
                       Id: {UserUid}
                     </Typography>
@@ -104,11 +93,10 @@ class Cuenta extends Component {
                     <Typography
                       style={{ fontSize: 20, fontWeight: 130, color: "Black" }}
                     >
-                      Wallet: {Wallet}
+                      Cartera: {Wallet}
                     </Typography>
                   </Grid>
                 </Grid>
-                
               </Grid>
             </Grid>
           </Grid>

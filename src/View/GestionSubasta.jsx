@@ -4,7 +4,7 @@ import {
   fetchMetadataSingleNft,
   fetchNFTs,
   getOwnerofNFT,
-} from "./fetch-script";
+} from "../Controller/fetch-script";
 import { useParams } from "react-router-dom";
 import Grid from "@mui/material/Grid";
 import Typography from "@mui/material/Typography";
@@ -23,14 +23,20 @@ import {
   getFirestore,
   getDoc,
   updateDoc,
+  collection,
+  query,
+  getDocs,
+  orderBy,
+  limit,
+  where,
 } from "firebase/firestore";
-import app from "./Database.mjs";
+import app, { getSubasta } from "../Controller/Database-controller.js";
 import { Link } from "react-router-dom";
 import { ethers } from "ethers";
-import ABI from "./Contracts/NFT.sol";
+import ABI from "../Contracts/NFT.sol";
 import Alert from "@mui/material/Alert";
-
-class CrearSubasta extends Component {
+import { promiseNFt } from "../Controller/contract-controller.js";
+class GestionSubasta extends Component {
   constructor(props) {
     super(props);
     this.state = {
@@ -38,6 +44,7 @@ class CrearSubasta extends Component {
       scrollPosition: 0,
       response: [],
       data: [],
+      Info: [],
       uid: this.props.UserUid,
       Puja: 0,
       GoodSnackBar: 0,
@@ -66,86 +73,181 @@ class CrearSubasta extends Component {
   };
   async componentWillMount() {
     if (this.state.uid != "LogIn") {
-      await fetchMetadataSingleNft(this.props.params.Id)
-        .then((response) => this.getOnSiteSingleNft(response))
-        .then((response) => this.setState({ data: response }));
+      await getSubasta(this.props.params.Id)
+        .then((info) => {
+          this.setState({ Info: info });
+          return info;
+        })
+        .then((response) =>
+          fetchMetadataSingleNft(response.Id).then((response) =>
+            this.setState({ data: response })
+          )
+        );
     }
   }
-  async getOnSiteSingleNft(Data) {
-    console.log(Data);
-    let auth = getAuth(app);
-    const db = getFirestore(app);
-    let info = Data;
-    let docRef = doc(db, "Obras", this.props.params.Id);
-    const docSnap = await getDoc(docRef);
-    if (docSnap.exists()) {
-      //console.log("Obra:" + Data[i].name + "-> " + docSnap.data().InSite);
-      console.log(docSnap.data());
-      info = {
-        ...info,
-        InSite: docSnap.data().InSite,
-        InProgress: docSnap.data().InProgress,
-      };
-      console.log(info);
 
-    } else console.log("no hay datos");
-
-    console.log(info);
-    return info;
-  }
-
-  async promiseNFt() {
+  async FinalizarSubasta() {
     const ERC721ABI = [
-      "function approve(address to, uint256 tokenId) public virtual",
+      "function finalizarSubasta(uint256 _ID)public",
+      "function admins(uint256) view returns(address)",
+      "function nAdmins() view returns(uint)",
+      "function ID() view returns(uint)",
     ];
-    if (this.state.Puja != 0) {
-      let provider = new ethers.providers.Web3Provider(window.ethereum);
-      await provider.send("eth_requestAccounts", []);
-      const NFTSmartContract = "0x57F6c8aad191e2C2079d02E199f0e916BA3308C3";
-      let signer = await provider.getSigner();
-      let con = false;
-      let signerAddr = await signer.getAddress().then((addr) =>
-        getOwnerofNFT(this.props.params.Id).then((owner) => {
-          console.log(addr + " " + owner);
-          if (addr == owner) {
-            const Contract = new ethers.Contract(
-              NFTSmartContract,
-              ERC721ABI,
-              provider
-            );
-            const daiWithSigner = Contract.connect(signer);
-            let promise = daiWithSigner
-              .approve(
-                "0x93830807acBB51AF702FF4EBDC2f195FeFF709E1",
-                this.props.params.Id
-              )
-              .then((promise) => promise.wait().then(() => this.setPuja()));
-          } else {
+    let provider = new ethers.providers.Web3Provider(window.ethereum);
+    await provider.send("eth_requestAccounts", []);
+    const db = getFirestore(app);
+    const SubastasSmartContract = "0x21Cc86798C5b09c900c8Cd489f9FF1C0335Bd1C9";
+    const Contract = new ethers.Contract(
+      SubastasSmartContract,
+      ERC721ABI,
+      provider
+    );
+
+    let signer = await provider.getSigner();
+    const daiWithSigner = Contract.connect(signer);
+
+    await signer.getAddress().then((address) => {
+      console.log(address);
+      let wallet = false;
+      Contract.nAdmins()
+        .then((NAdmins) => {
+          let Isadmin = false;
+
+          console.log(NAdmins.toNumber() + 1);
+          for (let i = 0; i < NAdmins.toNumber() + 1 && !Isadmin; i++) {
+            console.log(111);
+            Contract.admins(i).then((adminaddress) => {
+              console.log(address + "  " + adminaddress);
+              if (address == adminaddress) {
+                Isadmin = true;
+                let Ref = collection(
+                  db,
+                  "Subastas",
+                  this.props.params.Id,
+                  "Pujadores"
+                );
+                const docRef = doc(
+                  db,
+                  "Subastas",
+                  this.props.params.Id,
+                  "Pujadores",
+                  (parseInt(this.state.Info.NumerodePujas, 10)).toString()
+                );
+                  daiWithSigner
+                    .finalizarSubasta(this.props.params.Id)
+                    .then((promise) =>
+                      promise.wait().then(() => {
+                        getDoc(docRef).then((data) => {
+                          console.log(data);
+                          updateDoc(doc(db, "Subastas", this.props.params.Id), {
+                            Open: false,
+                            WinnerWallet: data.data().Addr,
+                            ToPay: true,
+                          })
+                            .then(() =>
+                              updateDoc(doc(db, "Obras", this.state.Info.Id), {
+                                InProgress: false,
+                                ToPay: true,
+                              })
+                            )
+                            .then(() => {
+                              this.setState({
+                                GoodSnackBarMessage: "Subasta Finalizada",
+                              });
+                              this.GoodSnackBarOpen();
+                              wallet = true;
+                            });
+                        });
+                      })
+                    );
+              }
+            });
+          }
+        })
+        .then(() => {
+          if (!wallet) {
             this.setState({
               BadSnackBarMessage: "Debe de conectar la cartera correcta",
             });
             this.BadSnackBarOpen();
           }
-        })
-      );
-    } else {
-      this.setState({ BadSnackBarMessage: "Escriba la Puja minima" });
-      this.BadSnackBarOpen();
-    }
+        });
+    });
   }
-  async setPuja() {
+
+  async SiguientePujador() {
+    const ERC721ABI = [
+      "function NextPayer()public ",
+      "function admins(uint256) view returns(address)",
+      "function nAdmins() view returns(uint)",
+      "function ID() view returns(uint)",
+    ];
+    let provider = new ethers.providers.Web3Provider(window.ethereum);
+    await provider.send("eth_requestAccounts", []);
     const db = getFirestore(app);
-    if (this.state.Puja != 0) {
-      await updateDoc(doc(db, "Obras", this.props.params.Id), {
-        PujaMinima: this.state.Puja,
-      });
-      this.setState({ GoodSnackBarMessage: "Solicitud de subasta creada" });
-      this.GoodSnackBarOpen();
-    } else {
-    }
+    const SubastasSmartContract = "0x21Cc86798C5b09c900c8Cd489f9FF1C0335Bd1C9";
+    const Contract = new ethers.Contract(
+      SubastasSmartContract,
+      ERC721ABI,
+      provider
+    );
+
+    let signer = await provider.getSigner();
+    const daiWithSigner = Contract.connect(signer);
+
+    await signer.getAddress().then((address) => {
+      console.log(address);
+      let wallet = false;
+      Contract.nAdmins()
+        .then((NAdmins) => {
+          let Isadmin = false;
+
+          console.log(NAdmins.toNumber() + 1);
+          for (let i = 0; i < NAdmins.toNumber() + 1 && !Isadmin; i++) {
+            console.log(111);
+            Contract.admins(i).then((adminaddress) => {
+              console.log(address + "  " + adminaddress);
+              if (address == adminaddress) {
+                Isadmin = true;
+                daiWithSigner.NextPayer().then((promise) =>
+                  promise.wait().then(() => {
+                    updateDoc(doc(db, "Subastas", this.props.params.Id), {
+                      Id: this.props.params.Id,
+                    })
+                      .then(() =>
+                        updateDoc(doc(db, "Obras", this.props.params.Id), {
+                          InProgress: false,
+                          ToPay: true,
+                        })
+                      )
+                      .then(() => {
+                        this.setState({
+                          GoodSnackBarMessage: "Pujador Modificado",
+                        });
+                        this.GoodSnackBarOpen();
+                        wallet = true;
+                      });
+                  })
+                );
+              }
+            });
+          }
+        })
+        .then(() => {
+          if (!wallet) {
+            this.setState({
+              BadSnackBarMessage: "Debe de conectar la cartera correcta",
+            });
+            this.BadSnackBarOpen();
+          }
+        });
+    });
   }
+
   render() {
     let data = [];
+    let info = this.state.Info;
+    console.log(info);
     data = this.state.data;
     let uid = this.state.uid;
     return (
@@ -168,9 +270,9 @@ class CrearSubasta extends Component {
             >
               <Grid item>
                 <Typography
-                  style={{ fontSize: 35, fontWeight: 200, color: "Black" }}
+                  style={{ fontSize: 35, fontWeight: 200 }}color="#482d0b"   sx={{textDecoration: 'underline'}} display="inline"
                 >
-                  Informacion de la obra
+                  Informacion de la Subasta
                 </Typography>
               </Grid>
 
@@ -211,80 +313,20 @@ class CrearSubasta extends Component {
                           Descripcion: {data.description}
                         </Typography>
                       </Grid>
+                      <Grid item sx={{ paddingTop: 3 }}>
+                        <Typography
+                          style={{
+                            fontSize: 20,
+                            fontWeight: 150,
+                            color: "Black",
+                          }}
+                        >
+                          Puja Actual: {info.PujaActual}
+                        </Typography>
+                      </Grid>
                     </Grid>
-                    {data.InSite ? (
+                    {info.Open ? (
                       <>
-                        {data.InProgress ? (
-                          <>
-                            <Grid item sx={{ paddingTop: 3 }}>
-                              <Grid container alignItems="center">
-                                <Typography
-                                  style={{
-                                    fontSize: 20,
-                                    fontWeight: 50,
-                                    color: "Black",
-                                  }}
-                                >
-                                  Subasta en Progreso
-                                </Typography>
-                              </Grid>
-                            </Grid>
-                            <Grid
-                              container
-                              direction="row"
-                              justifyContent="flex-end"
-                              alignItems="flex-end"
-                              sx={{ paddingTop: 5 }}
-                            >
-                              <Grid item>
-                                <Button variant="contained">
-                                  Ir a la Pagina de la subasta
-                                </Button>
-                              </Grid>
-                            </Grid>
-                          </>
-                        ) : (
-                          <>
-                            <Grid item sx={{ paddingTop: 3 }}>
-                              <Grid container alignItems="center">
-                                <Typography
-                                  style={{
-                                    fontSize: 20,
-                                    fontWeight: 50,
-                                    color: "Black",
-                                  }}
-                                >
-                                  Puja Inicial:
-                                </Typography>
-                                <TextField
-                                  onChange={(e) => {
-                                    this.setState({ Puja: e.target.value });
-                                  }}
-                                ></TextField>
-                              </Grid>
-                            </Grid>
-                            <Grid
-                              container
-                              direction="row"
-                              justifyContent="flex-end"
-                              alignItems="flex-end"
-                              sx={{ paddingTop: 5 }}
-                            >
-                              <Grid item>
-                                <Button
-                                  variant="contained"
-                                  onClick={() => this.promiseNFt()}
-                                >
-                                  Firmar Subasta
-                                </Button>
-                              </Grid>
-                            </Grid>
-                          </>
-                        )}
-                      </>
-                    ) : (
-                      <>
-                        <Grid item sx={{ paddingTop: 3 }}></Grid>
                         <Grid
                           container
                           direction="row"
@@ -293,16 +335,31 @@ class CrearSubasta extends Component {
                           sx={{ paddingTop: 5 }}
                         >
                           <Grid item>
-                            <Button variant="contained">
-                              <Link
-                                to={`/Envio/${this.props.params.Id}`}
-                                style={{
-                                  color: "#FFF",
-                                  textDecoration: "none",
-                                }}
-                              >
-                                Enviar a almacen
-                              </Link>
+                            <Button
+                              variant="contained"
+                              onClick={() => this.FinalizarSubasta()}
+                            >
+                              Finalizar Subasta
+                            </Button>
+                          </Grid>
+                        </Grid>
+                      </>
+                    ) : (
+                      <>
+                        {" "}
+                        <Grid
+                          container
+                          direction="row"
+                          justifyContent="flex-end"
+                          alignItems="flex-end"
+                          sx={{ paddingTop: 5 }}
+                        >
+                          <Grid item>
+                            <Button
+                              variant="contained"
+                              onClick={() => this.SiguientePujador()}
+                            >
+                              Siguiente Pujador
                             </Button>
                           </Grid>
                         </Grid>
@@ -410,4 +467,4 @@ const withRouter = (WrappedComponent) => (props) => {
 
   return <WrappedComponent {...props} params={params} />;
 };
-export default withRouter(CrearSubasta);
+export default withRouter(GestionSubasta);

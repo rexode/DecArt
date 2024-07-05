@@ -4,7 +4,7 @@ import {
   fetchMetadataSingleNft,
   fetchNFTs,
   getOwnerofNFT,
-} from "./fetch-script";
+} from "../Controller/fetch-script";
 import { useParams } from "react-router-dom";
 import Grid from "@mui/material/Grid";
 import Typography from "@mui/material/Typography";
@@ -16,16 +16,21 @@ import {
   signInWithEmailAndPassword,
   currentUser,
   getAuth,
-  
 } from "firebase/auth";
-import { doc, setDoc, getFirestore, getDoc ,updateDoc} from "firebase/firestore";
-import app from "./Database.mjs";
+import {
+  doc,
+  setDoc,
+  getFirestore,
+  getDoc,
+  updateDoc,
+} from "firebase/firestore";
+import app,{getSubasta} from "../Controller/Database-controller.js";
 import { Link } from "react-router-dom";
 import { ethers } from "ethers";
-import ABI from "./Contracts/NFT.sol";
+import ABI from "../Contracts/NFT.sol";
 import Alert from "@mui/material/Alert";
-
-class ConfirmarSubasta extends Component {
+import {promiseNFt} from "../Controller/contract-controller.js";
+class PagarSubasta extends Component {
   constructor(props) {
     super(props);
     this.state = {
@@ -33,7 +38,9 @@ class ConfirmarSubasta extends Component {
       scrollPosition: 0,
       response: [],
       data: [],
+      Info: [],
       uid: this.props.UserUid,
+      Puja: 0,
       GoodSnackBar: 0,
       BadSnackBar: 0,
       GoodSnackBarMessage: "Success!",
@@ -60,87 +67,79 @@ class ConfirmarSubasta extends Component {
   };
   async componentWillMount() {
     if (this.state.uid != "LogIn") {
-      await fetchMetadataSingleNft(this.props.params.Id)
-        .then((response) => this.getPujaSingleNft(response))
-        .then((response) => this.setState({ data: response }))
-        .then(() => getOwnerofNFT(this.props.params.Id))
-        .then((owner) => this.setState({ OwnerOfNft: owner }));
+      await getSubasta(this.props.params.Id).then((info)=>{this.setState({ Info: info }); return info}).then((response) =>
+        fetchMetadataSingleNft(response.Id).then((response) =>
+          this.setState({ data: response })
+        )
+      );
     }
   }
-  async getPujaSingleNft(Data) {
-    console.log(Data);
+  
+
+  async promiseNFt() {
+    const ERC721ABI = ["function pay(uint256 _ID)public payable"];
     const db = getFirestore(app);
-    let info = Data;
-    let docRef = doc(db, "Obras", this.props.params.Id);
-    const docSnap = await getDoc(docRef);
-    if (docSnap.exists()) {
-      //console.log("Obra:" + Data[i].name + "-> " + docSnap.data().InSite);
-      console.log(docSnap.data());
-      info = { ...info, PujaMinima: docSnap.data().PujaMinima };
-    } else console.log("no hay datos");
+    const docRef = doc(db, "Users", this.state.uid);
 
-    console.log(info);
-    return info;
-  }
+    
+      let provider = new ethers.providers.Web3Provider(window.ethereum);
+      await provider.send("eth_requestAccounts", []);
+      const NFTSmartContract = "0x21Cc86798C5b09c900c8Cd489f9FF1C0335Bd1C9";
+      let signer = await provider.getSigner();
+      let signerAddr = await signer
+        .getAddress()
+        .then((addr) => {
+          getDoc(docRef).then((docSnap) => {
+            console.log(addr + " " + docSnap.data().Wallet);
+            console.log(addr + " " + this.state.data.WinnerWallet);
 
-  async CrearSubasta() {
-    const ERC721ABI = [
-      "function crearSubasta(uint256 _objeto,uint256 _precioBase, address _NFTowner)public returns(uint256)",
-      "function admins(uint256) view returns(address)",
-      "function nAdmins() view returns(uint)",
-    ];
-    let provider = new ethers.providers.Web3Provider(window.ethereum);
-    let Wallet= false;
-    await provider.send("eth_requestAccounts", []);
-    const db = getFirestore(app);
-    const SubastasSmartContract = "0x7C5EDb64c8613D0778F6166Edfe8099Bf16D0182";
-    const Contract = new ethers.Contract(
-      SubastasSmartContract,
-      ERC721ABI,
-      provider
-    );
-
-    let signer = await provider.getSigner();
-    const daiWithSigner = Contract.connect(signer);
-
-    await signer.getAddress().then((address) => {
-      console.log(address);
-      Contract.nAdmins().then((NAdmins) => {
-        let Isadmin = false;
-        for (let i = 0; i < NAdmins + 1 && !Isadmin; i++) {
-          Contract.admins(i).then((adminaddress) => {
-            console.log(
-              ethers.utils.parseUnits(this.state.data.PujaMinima, "ether")
-            );
-            if (address == adminaddress){
-              Wallet=true;
-              daiWithSigner
-                .crearSubasta(
+            if (docSnap.exists() && addr == docSnap.data().Wallet && addr == this.state.Info.WinnerWallet) {
+              console.log(ethers.utils.parseUnits(this.state.Info.PujaActual, "ether").toString());
+              const Contract = new ethers.Contract(
+                NFTSmartContract,
+                ERC721ABI,
+                provider
+              );
+              const daiWithSigner = Contract.connect(signer);
+              const options = {value: ethers.utils.parseUnits(this.state.Info.PujaActual, "ether").toString()}
+              let promise = daiWithSigner
+                .pay(
                   this.props.params.Id,
-                  ethers.utils.parseUnits(this.state.data.PujaMinima, "ether"),
-                  this.state.OwnerOfNft
+                  options
                 )
-                .then((promise) =>
-                  promise.wait().then(() => {
-                    updateDoc(doc(db, "Obras", this.props.params.Id), {
-                      InProgress: true,
-                      ToVerify:false,
-                    });
-                    this.setState({
-                      GoodSnackBarMessage: "Subasta creada",
-                    });
-                    this.GoodSnackBarOpen();
-                  })
-                );}
+                .then((promise) => promise.wait().then(() => this.FinalizarSubasta(addr)));
+            } else {
+              this.setState({
+                BadSnackBarMessage: "Debe de conectar la cartera correcta",
+              });
+              this.BadSnackBarOpen();
+            }
           });
-        }
-        return Wallet;
-      });
-    });
+        })
+        .catch((error) => console.log(error.message));
+    
   }
-
+  async FinalizarSubasta(addr) {
+    const db = getFirestore(app);
+    console.log(this.state.Info);
+    
+      await updateDoc(doc(db, "Subastas", this.props.params.Id), {
+        Pagada: true,
+        ToPay:false
+        
+      }).then(()=> updateDoc(doc(db, "Obras", this.state.Info.Id), {
+        InProgress: false,
+        ToPay:false
+        
+      }))
+      this.setState({ GoodSnackBarMessage: "Compra Realizada" });
+      this.GoodSnackBarOpen();
+    }
+  
   render() {
     let data = [];
+    let info = this.state.Info;
+    console.log(info);
     data = this.state.data;
     let uid = this.state.uid;
     return (
@@ -163,9 +162,9 @@ class ConfirmarSubasta extends Component {
             >
               <Grid item>
                 <Typography
-                  style={{ fontSize: 35, fontWeight: 200, color: "Black" }}
+                  style={{ fontSize: 35, fontWeight: 200 }}color="#482d0b"  sx={{textDecoration: 'underline'}} display="inline"
                 >
-                  Informacion de la obra
+                  Pagar Subasta
                 </Typography>
               </Grid>
 
@@ -206,39 +205,39 @@ class ConfirmarSubasta extends Component {
                           Descripcion: {data.description}
                         </Typography>
                       </Grid>
-                    </Grid>
-
-                    <Grid item sx={{ paddingTop: 3 }}>
-                      <Grid container alignItems="center">
+                      <Grid item sx={{ paddingTop: 3 }}>
                         <Typography
                           style={{
                             fontSize: 20,
-                            fontWeight: 50,
+                            fontWeight: 150,
                             color: "Black",
                           }}
                         >
-                          Puja Inicial:
+                          Cantidad a pagar: {info.PujaActual}
                         </Typography>
-                        <TextField disabled label={data.PujaMinima}></TextField>
                       </Grid>
                     </Grid>
-                    <Grid
-                      container
-                      direction="row"
-                      justifyContent="flex-end"
-                      alignItems="flex-end"
-                      sx={{ paddingTop: 5 }}
-                    >
-                      <Grid item>
-                        <Button
-                          variant="contained"
-                          onClick={() => this.CrearSubasta().then((Wallet)=>{if(!Wallet){this.setState({BadSnackBarMessage :"Debe de conectar la cartera correcta"})
-        this.BadSnackBarOpen();}})}
+                    <>
+                      <>
+                        
+                        <Grid
+                          container
+                          direction="row"
+                          justifyContent="flex-end"
+                          alignItems="flex-end"
+                          sx={{ paddingTop: 5 }}
                         >
-                          Crear Subasta
-                        </Button>
-                      </Grid>
-                    </Grid>
+                          <Grid item>
+                            <Button
+                              variant="contained"
+                              onClick={() => this.promiseNFt()}
+                            >
+                              Pagar Obra
+                            </Button>
+                          </Grid>
+                        </Grid>
+                      </>
+                    </>
                   </Grid>
                 </Grid>
               </Grid>
@@ -341,4 +340,4 @@ const withRouter = (WrappedComponent) => (props) => {
 
   return <WrappedComponent {...props} params={params} />;
 };
-export default withRouter(ConfirmarSubasta);
+export default withRouter(PagarSubasta);

@@ -1,6 +1,6 @@
 import React, { Component } from "react";
 import Box from "@mui/material/Box";
-import { fetchMetadataSingleNft, fetchNFTs } from "./fetch-script";
+import { fetchMetadataSingleNft, fetchNFTs } from "../Controller/fetch-script";
 import { useParams } from "react-router-dom";
 import Grid from "@mui/material/Grid";
 import Typography from "@mui/material/Typography";
@@ -13,8 +13,14 @@ import {
   currentUser,
   getAuth,
 } from "firebase/auth";
-import { doc, setDoc, getFirestore, getDoc, updateDoc} from "firebase/firestore";
-import app from "./Database.mjs";
+import {
+  doc,
+  setDoc,
+  getFirestore,
+  getDoc,
+  updateDoc,
+} from "firebase/firestore";
+import app from "../Controller/LogIn-controller.js";
 
 class SendArt extends Component {
   constructor(props) {
@@ -24,16 +30,15 @@ class SendArt extends Component {
     };
     console.log(this.props.params.Id);
   }
-  async UpdateStatus(){
+  async UpdateStatus() {
     let auth = getAuth(app);
     const db = getFirestore(app);
     const Referencia = doc(db, "Obras", this.state.Id);
 
     // Set the "capital" field of the city 'DC'
     await updateDoc(Referencia, {
-      InSite: true
+      InSite: true,
     });
-    
   }
   render() {
     return (
@@ -56,7 +61,7 @@ class SendArt extends Component {
             <Typography
               style={{ fontSize: 25, fontWeight: 200, color: "Black" }}
             >
-              ¿Como enviar la obra a nuestros almacenes? 
+              ¿Como enviar la obra a nuestros almacenes?
             </Typography>
           </Grid>
 
@@ -73,14 +78,19 @@ class SendArt extends Component {
                     <Typography
                       style={{ fontSize: 18, fontWeight: 130, color: "Black" }}
                     >
-                      Recibiras un correo con los proximos pasos a realizar para la verificacion de la obra en nuestras instalaciones
+                      Recibiras un correo con los proximos pasos a realizar para
+                      la verificacion de la obra en nuestras instalaciones
                     </Typography>
                   </Grid>
                   <Grid item>
-                        <Button variant="contained" onClick={() => this.UpdateStatus()}>Confirmar</Button>
-                      </Grid>
+                    <Button
+                      variant="contained"
+                      onClick={() => this.UpdateStatus()}
+                    >
+                      Confirmar
+                    </Button>
+                  </Grid>
                 </Grid>
-                
               </Grid>
             </Grid>
           </Grid>

@@ -21,7 +21,7 @@ import { collection, query, where, getDocs } from "firebase/firestore";
 
 import { doc, setDoc, getFirestore } from "firebase/firestore";
 import { withRouter } from "react-router-dom";
-import app from "./Database.mjs";
+import app from "../Controller/LogIn-controller.js";
 import { useNavigate } from "react-router-dom";
 
 class Log_in extends Component {
@@ -38,7 +38,7 @@ class Log_in extends Component {
       BadSnackBar: 0,
       GoodSnackBarMessage: "Success!",
       BadSnackBarMessage: "Error!",
-      Wallet: "Wallet",
+      Wallet: "Cartera",
       IsWalletUnique: true
     };
   }
@@ -105,7 +105,7 @@ class Log_in extends Component {
     if (this.state.Password != this.state.ConfirmPassword) {
       this.setState({ BadSnackBarMessage: "Las contraseñas son diferentes" });
       this.BadSnackBarOpen();
-    } else if (this.state.Wallet == "Wallet") {
+    } else if (this.state.Wallet == "Cartera") {
       this.setState({ BadSnackBarMessage: "Verifica la Cartera" });
       this.BadSnackBarOpen();
     }
@@ -196,7 +196,7 @@ class Log_in extends Component {
           >
             <Grid item>
               <Typography variant="h5" color="primary">
-                Log-In
+                Inicio de sesion
               </Typography>
             </Grid>
             <Grid item>
@@ -217,7 +217,7 @@ class Log_in extends Component {
                 />
                 <TextField
                   variant="outlined"
-                  label="Password"
+                  label="Contraseña"
                   fullWidth
                   style={{ marginBottom: "2em" }}
                   type="password"
@@ -231,7 +231,7 @@ class Log_in extends Component {
                     color="primary"
                     onClick={() => this.handleRegister()}
                   >
-                    Register
+                    Registrarse
                   </Button>
                   <Button
                     size="large"
@@ -239,7 +239,7 @@ class Log_in extends Component {
                     color="primary"
                     onClick={() => this.GoLogIn()}
                   >
-                    LogIn
+                    Inicio de sesion
                   </Button>
                 </Grid>
               </Grid>
@@ -255,7 +255,7 @@ class Log_in extends Component {
           >
             <Grid item>
               <Typography variant="h5" color="primary">
-                Register
+                Registrarse
               </Typography>
             </Grid>
             <Grid item>
@@ -276,7 +276,7 @@ class Log_in extends Component {
                 />
                 <TextField
                   variant="outlined"
-                  label="Username"
+                  label="Usuario"
                   fullWidth
                   style={{ marginBottom: "2em" }}
                   onChange={(e) => {
@@ -303,12 +303,12 @@ class Log_in extends Component {
                     color="primary"
                     onClick={() => this.signMessage()}
                   >
-                    Sign with Wallet
+                    Firma con la Cartera
                   </Button>
                 </Grid>
                 <TextField
                   variant="outlined"
-                  label="Password"
+                  label="Contraseña"
                   fullWidth
                   style={{ marginBottom: "2em" }}
                   type="password"
@@ -318,7 +318,7 @@ class Log_in extends Component {
                 />
                 <TextField
                   variant="outlined"
-                  label="Confirm Password"
+                  label="Confirma Contraseña"
                   fullWidth
                   style={{ marginBottom: "2em" }}
                   type="password"
@@ -332,7 +332,7 @@ class Log_in extends Component {
                     color="primary"
                     onClick={() => this.handleLogin()}
                   >
-                    LogIn
+                    Inicio de sesion
                   </Button>
                   <Button
                     size="large"
@@ -340,7 +340,7 @@ class Log_in extends Component {
                     color="primary"
                     onClick={() => this.GoRegister()}
                   >
-                    Register
+                    Registrarse
                   </Button>
                 </Grid>
               </Grid>
